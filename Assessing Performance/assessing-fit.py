@@ -33,7 +33,8 @@ plt.plot(poly_data2['sqft_living'], poly_data2['price'], '.',
 train_valid_data, test_data = train_test_split(sales, test_size=0.1)
 train_data, valid_data = train_test_split(sales, test_size=0.3)
 
-arr = []
+arr1 = []
+arr2 = []
 for degree in range(1, 16):
     poly = PolynomialFeatures(degree)
     X_train = np.array(train_data['sqft_living']).reshape(-1, 1)
@@ -46,10 +47,18 @@ for degree in range(1, 16):
     X_valid = poly.fit_transform(X_valid)
     y_valid = np.array(valid_data['price'])
     y_valid_predicted = regr.predict(X_valid)
-    residuals = y_valid_predicted - y_valid
-    rss = sum(residuals * residuals)
-    arr.append(rss)
+    residuals_valid = y_valid_predicted - y_valid
+    rss1 = sum(residuals_valid * residuals_valid)
+    arr1.append(rss1)
 
-print(arr.index(min(arr)), min(arr))
+    X_test = np.array(test_data['sqft_living']).reshape(-1, 1)
+    X_test = poly.fit_transform(X_test)
+    y_test = np.array(test_data['price'])
+    y_test_predicted = regr.predict(X_test)
+    residuals_test = y_test_predicted - y_test
+    rss2 = sum(residuals_test * residuals_test)
+    arr2.append(rss2)
 
+print(arr1.index(min(arr1)), min(arr1))
+print(arr2.index(min(arr2)), min(arr2))
 
