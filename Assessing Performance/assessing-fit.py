@@ -28,3 +28,28 @@ regr2.fit(X, y)
 predicted = regr2.predict(X)
 plt.plot(poly_data2['sqft_living'], poly_data2['price'], '.',
          poly_data2['sqft_living'], predicted, '-')
+
+# selecting a polynomial degree
+train_valid_data, test_data = train_test_split(sales, test_size=0.1)
+train_data, valid_data = train_test_split(sales, test_size=0.3)
+
+arr = []
+for degree in range(1, 16):
+    poly = PolynomialFeatures(degree)
+    X_train = np.array(train_data['sqft_living']).reshape(-1, 1)
+    X_train = poly.fit_transform(X_train)
+    y_train = np.array(train_data['price'])
+    regr = LinearRegression()
+    regr.fit(X_train, y_train)
+
+    X_valid = np.array(valid_data['sqft_living']).reshape(-1, 1)
+    X_valid = poly.fit_transform(X_valid)
+    y_valid = np.array(valid_data['price'])
+    y_valid_predicted = regr.predict(X_valid)
+    residuals = y_valid_predicted - y_valid
+    rss = sum(residuals * residuals)
+    arr.append(rss)
+
+print(arr.index(min(arr)), min(arr))
+
+
