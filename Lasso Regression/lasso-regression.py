@@ -3,7 +3,7 @@ import numpy as np
 from math import sqrt
 from sklearn.model_selection import train_test_split, ShuffleSplit, KFold
 from sklearn.linear_model import Lasso
-from sklearn.preprocessing import PolynomialFeatures
+from sklearn.preprocessing import PolynomialFeatures, normalize
 import matplotlib.pyplot as plt
 
 
@@ -27,3 +27,33 @@ for l1 in np.logspace(1, 7, num=13):
     coef.loc[l1] = np.append(regr.coef_, rss)
 
 print(coef.apply(lambda x: sum(x.values != 0), axis=1)) # print feature number
+
+
+# Implement Coordinate Descent
+features = ['sqft_living', 'bedrooms']
+feature_matrix = sales[features].values
+poly = PolynomialFeatures(1)
+feature_matrix = poly.fit_transform(feature_matrix)
+weights = np.ones(feature_matrix.shape[1])
+target = np.array(sales['price'])
+l1_penalty = 1
+
+# norms = np.sqrt(np.sum(feature_matrix ** 2, axis=0))
+# normlized_features = feature_matrix / norms
+
+
+def coordinate_descent(feature_matrix, target, weights, l1_penalty):
+    rho = [0 for i in range(feature_matrix.shape[1])]
+    for i in range(feature_matrix.shape[1]):
+        predicted = np.dot(feature_matrix, weights)
+        rss = sum((predicted - target) * (predicted - target))
+        print(weights, rss)
+        rho[i] = sum(weights[i] * (target - predicted + weights[i] * feature_matrix[:, i]))
+        if i == 0:
+            weights[i] = rho[i]
+        elif rho[i] < -l1_penalty / 2:
+            weights[i] = rho[i] + l1_penalty / 2
+        elif rho[i] > l1_penalty / 2.:
+            weights[i] = rho[i] - l1_penalty / 2
+        else:
+            weights[i] = 0
