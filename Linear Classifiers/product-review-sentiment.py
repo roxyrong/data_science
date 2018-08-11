@@ -53,3 +53,4 @@ for items in zip(test_predicted_subset, test_target):
     if items[0] * items[1] == 1:
         count = count + 1
 accuracy = count / len(test_target)
+
