@@ -73,3 +73,46 @@ bits_agree = np.array(model['bin_index_bits'][obama.index] == model['bin_index_b
 obama_sim_index = model['table'][model['bin_indices'][obama.index[0]]]
 docs = wiki[wiki.index.isin(obama_sim_index)].reset_index()
 docs['sim'] = docs['index'].map(lambda x: cosine_distance(obama_tf_idf, corpus[x, :]) if x != obama.index[0] else 1)
+
+
+def search_nearby_bins(query_bin_bits, table, search_radius=2, initial_candidates=set()):
+    from itertools import combinations
+    num_vector = len(query_bin_bits)
+    powers_of_two = 1 << np.arange(num_vector - 1, -1, -1)
+
+    candidate_set = copy(initial_candidates)
+    for different_bits in combinations(range(num_vector), search_radius):
+        alternate_bits = copy(query_bin_bits)
+        for i in different_bits:
+            alternate_bits[i] = not query_bin_bits[i]
+        nearby_bin = alternate_bits.dot(powers_of_two)
+        if nearby_bin in table:
+            candidate_set |= set(table[nearby_bin])
+    return candidate_set
+
+
+obama_bin_index = model['bin_index_bits'][obama.index[0]]
+candidate_set = search_nearby_bins(obama_bin_index, model['table'], search_radius=1)
+
+
+def query(vec, model, k, max_search_radius):
+    data = model['data']
+    table = model['table']
+    random_vectors = model['random_vectors']
+    bin_index_bits = (vec.dot(random_vectors) >= 0).flatten()
+
+    candidate_set = set()
+    for search_radius in np.arange(max_search_radius + 1):
+        candidate_set = search_nearby_bins(bin_index_bits, table, search_radius, initial_candidates=candidate_set)
+        print(len(candidate_set))
+
+    nearest_neighbors = pd.DataFrame({'id': list(candidate_set)})
+    candidates = data[np.array(list(candidate_set)), :]
+    nearest_neighbors['distance'] = pairwise_distances(candidates, vec, metric='cosine').flatten()
+
+    return nearest_neighbors.sort_values('distance', ascending=False).iloc[:k], len(candidate_set)
+
+
+vec = corpus[obama.index[0], :]
+result, num_candidates_considered = query(corpus[35817,:], model, k=10, max_search_radius=3)
+kNN = pd.merge(result, wiki[['id', 'name']], how='inner', on='id')
