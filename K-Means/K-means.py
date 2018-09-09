@@ -7,6 +7,7 @@ from sklearn.metrics import pairwise_distances
 import sys
 import os
 import json
+import time
 
 
 def load_sparse_csr(filename):
@@ -126,3 +127,61 @@ initial_centroids = get_initial_centroids(tf_idf, k, seed=0)
 centroids, cluster_assignment = kmeans(tf_idf, k, initial_centroids, maxiter=400,
                                        record_heterogeneity=heterogeneity, verbose=True)
 plot_heterogeneity(heterogeneity, k)
+
+# K-Means +++
+
+
+def smart_initialize(data, k, seed=None):
+    if seed is not None:
+        np.random.seed(seed)
+    centroids = np.zeros((k, data.shape[1]))
+
+    idx = np.random.randint(data.shape[0])
+    centroids[0] = data[idx, :].toarray()
+    squared_distances = pairwise_distances(data, centroids[0:1], metric='euclidean').flatten() ** 2
+
+    for i in np.arange(1, k):
+        idx = np.random.choice(data.shape[0], 1, p=squared_distances / sum(squared_distances))
+        centroids[i] = data[idx, :].toarray()
+        squared_distances = np.min(pairwise_distances(data, centroids[0:i + 1], metric='euclidean') ** 2, axis=1)
+
+    return centroids
+
+
+def kmeans_multiple_runs(data, k, maxiter, num_runs, seed_list=None, verbose=False):
+    heterogeneity = {}
+
+    min_heterogeneity_achieved = float('inf')
+    best_seed = None
+    final_centroids = None
+    final_cluster_assignment = None
+
+    for i in np.arange(num_runs):
+
+        # Use UTC time if no seeds are provided
+        if seed_list is not None:
+            seed = seed_list[i]
+            np.random.seed(seed)
+        else:
+            seed = int(time.time())
+            np.random.seed(seed)
+
+        initial_centroids = smart_initialize(data, k, seed_list[i])
+
+        centroids, cluster_assignment = kmeans(data, k, initial_centroids, maxiter,
+                                               record_heterogeneity=None, verbose=True)
+
+        heterogeneity[seed] = compute_heterogeneity(data, k, centroids, cluster_assignment)
+
+        if verbose:
+            print('seed={0:06d}, heterogeneity={1:.5f}'.format(seed, heterogeneity[seed]))
+            sys.stdout.flush()
+
+        if heterogeneity[seed] < min_heterogeneity_achieved:
+            min_heterogeneity_achieved = heterogeneity[seed]
+            best_seed = seed
+            final_centroids = centroids
+            final_cluster_assignment = cluster_assignment
+
+    return final_centroids, final_cluster_assignment
+
